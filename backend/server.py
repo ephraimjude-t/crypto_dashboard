@@ -8,7 +8,7 @@ import json
 from database import initial_setup, insert_data, get_candles
 from fastapi.middleware.cors import CORSMiddleware
 
-book = OrderBook('BTCUSDT')
+orderbooks = {}
 symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT']
 
 
@@ -16,8 +16,9 @@ symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT']
 async def lifespan(app:FastAPI):
     await initial_setup()
     async with aiohttp.ClientSession() as session:
-        await book.snapshot_data(session)
-        for symbol in symbols:  
+        for symbol in symbols:
+            orderbooks[symbol] = OrderBook(symbol)
+            await orderbooks[symbol].snapshot_data(session)
             async with session.get(f'https://api.binance.com/api/v3/klines?symbol={symbol}&interval=1d&limit=200') as response:
                 klines = await response.json()
                 for k in klines:
@@ -29,27 +30,29 @@ async def lifespan(app:FastAPI):
                         'close':  float(k[4]),
                         'volume': float(k[5]),
                     })
-    update = asyncio.create_task(book.update_data(update_event))  
+    tasks = []
+    for symbol, ob_instance in orderbooks.items():
+        tasks.append(asyncio.create_task(ob_instance.update_data(update_event)))
     yield
-    update.cancel()  
-    try:
-        await update
-    except asyncio.CancelledError:
-        print('error: asyncio canceleld')
-
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
 app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"], 
     allow_headers=["*"], 
 )
 
-@app.get("/orderbook")
-async def get_orderbook():
-    top_bids, top_asks = book.top(10) 
+@app.get("/orderbook/{symbol}")
+async def get_orderbook(symbol: str):
+    symbol = symbol.upper()
+    if symbol not in orderbooks:
+        return {"error": "Symbol not supported"}, 404
+    top_bids, top_asks = orderbooks[symbol].top(10) 
     return{
         "bids": [{"price": p, "quantity": q,}for p,q  in top_bids],
         "asks":[{"price": p, "quantity": q,}for p,q  in top_asks]
@@ -83,16 +86,25 @@ async def fetch_candles(symbol: str):
     ]
     
 
-@app.websocket("/ws/orderbook")
-async def ws_orderbook(websocket: WebSocket):
+@app.websocket("/ws/orderbook/{symbol}")
+async def ws_orderbook(websocket: WebSocket, symbol: str):
+    symbol = symbol.upper()
     await websocket.accept()
+
+    if symbol not in orderbooks:
+        await websocket.send_json({"error": "Invalid symbol"})
+        await websocket.close()
+        return
+    
+    target_book = orderbooks[symbol]
+
     try:
         while True: 
             await update_event.wait()
             update_event.clear()   
-            top_bids, top_asks = book.top(5)
+            top_bids, top_asks = target_book.top(5)
             data = {
-                "symbol": book.symbol,
+                "symbol": symbol,
                 "bids": [{"price": p, "quantity": q,}for p,q  in top_bids],
                 "asks":[{"price": p, "quantity": q,}for p,q  in top_asks],
             

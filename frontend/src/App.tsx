@@ -3,7 +3,7 @@ import Selector from './components/tickerSelector.tsx'
 import ThemeToggle from "./components/SwitchTheme.tsx";
 import Chart from "./components/TradingChart.tsx";
 import ChangePercent from "./components/ChangePercent.tsx";
-
+import OrderBook from "./components/OrderBook.tsx";
 
 function App() {
 
@@ -44,10 +44,7 @@ function App() {
             <Chart activeTicker={activeTicker}/>
           </div>
           <div className="bg-[#E1E1E1] dark:bg-[#151921] row-start-2 col-start-10 col-span-3 row-span-7 rounded-[25px]">
-          </div>
-          <div className="bg-[#E1E1E1] dark:bg-[#151921] row-start-10 col-span-6 row-span-4 rounded-[25px]">
-          </div>
-          <div className="bg-[#E1E1E1] dark:bg-[#151921] row-start-10 col-start-7 col-span-6 row-span-4 rounded-[25px]">
+            <OrderBook symbol={activeTicker}/>
           </div>
         </div>
       </div>

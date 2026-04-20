@@ -11,7 +11,7 @@ interface OrderBookData {
     asks: Order[];
 }
 
-function OrderBook(){
+function OrderBook({symbol}: {symbol:string}){
     const [data, setData] = useState<OrderBookData>({
         symbol:"",
         bids:[],
@@ -20,7 +20,7 @@ function OrderBook(){
     const [connected, setConnected] = useState(false)
 
     useEffect(() =>{
-        const socket = new WebSocket('ws://localhost:8000/ws/orderbook')
+        const socket = new WebSocket(`ws://localhost:8000/ws/orderbook/${symbol}`)
 
         socket.onopen = () => setConnected(true)
 
@@ -33,7 +33,7 @@ function OrderBook(){
         socket.onclose = () => setConnected(false)
 
         return () => socket.close();
-    },[])
+    },[symbol])
 
 
     
