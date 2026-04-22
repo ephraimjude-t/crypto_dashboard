@@ -1,11 +1,30 @@
-import { useEffect, useRef, useState } from 'react';
-import { createChart, AreaSeries, CandlestickSeries, ColorType, } from 'lightweight-charts';
-import type { IChartApi } from 'lightweight-charts'
+import { useEffect, useRef} from 'react';
+import { createChart, AreaSeries, CandlestickSeries, ColorType } from 'lightweight-charts';
+import type { IChartApi, Time } from 'lightweight-charts'
+
+interface RawCandle {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}
+
+interface ChartCandle {
+  time: Time;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}
+interface AreaData {
+  time: Time;
+  value: number;
+}
 
 
 
 function Chart({activeTicker}: {activeTicker:string}) {
-    const [darkmode, setDarkmode] = useState(false)
     const containerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
 
@@ -42,20 +61,20 @@ function Chart({activeTicker}: {activeTicker:string}) {
         const get_data = async () => {
             try{
                 const req = await fetch(`http://127.0.0.1:8000/candles/${activeTicker}`)
-                const res = await req.json()
-                const candleStickData  = res.map(item => ({
-                    time: item.time,
+                const res = await req.json() as RawCandle[]
+                const candleStickData: ChartCandle[]  = res.map(item => ({
+                    time: item.time as Time, 
                     open: item.open,
                     close: item.close,
                     low: item.low,
                     high: item.high,
-                })).sort((a, b)=> a.time-b.time);
+                })).sort((a, b)=> (a.time as number) - (b.time as number));
                 candlestickSeries.setData(candleStickData)
                 
-                const areaSeriesData = res.map(item =>({
-                    time: item.time,
+                const areaSeriesData: AreaData[] = res.map(item =>({
+                    time: item.time as Time,
                     value: item.close
-                })).sort((a,b)=> a.time-b.time)
+                })).sort((a,b)=> (a.time as number) - (b.time as number))
                 areaSeries.setData(areaSeriesData)
 
                 chart.timeScale().fitContent();

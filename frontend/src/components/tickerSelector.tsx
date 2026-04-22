@@ -1,13 +1,17 @@
 import { useState } from "react";
 
-function Selector({onSelectChange}) {
+interface SelectorProps {
+  onSelectChange: (ticker: string) => void;
+}
+
+function Selector({onSelectChange}: SelectorProps) {
 
     const tickers = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT']
 
     const [select, setSelect] = useState('BTCUSDT')
     const [isOpen, setIsOpen] = useState(false)
 
-    const handleSelect = (ticker) =>{
+    const handleSelect = (ticker: string) =>{
         setSelect(ticker);
         setIsOpen(false);
         onSelectChange(ticker)      

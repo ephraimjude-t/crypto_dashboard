@@ -39,7 +39,7 @@ function OrderBook({symbol}: {symbol:string}){
     
 
     return (
-        <div style={{ backgroundColor: '#121212', color: 'white', padding: '20px', borderRadius: '8px', width: '300px' }}>
+        <div className="bg-[#E1E1E1] dark:bg-[#151921] text-[#1E293B] dark:text-[#EAECEF] p-[20px]">
             <h3>{data.symbol || "Loading..."} Order Book</h3>
             <div style={{ fontSize: '0.8rem', color: connected ? '#4caf50' : '#f44336' }}>
                 {connected ? "● Live" : "○ Disconnected"}

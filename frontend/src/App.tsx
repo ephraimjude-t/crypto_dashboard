@@ -5,6 +5,7 @@ import Chart from "./components/TradingChart.tsx";
 import ChangePercent from "./components/ChangePercent.tsx";
 import OrderBook from "./components/OrderBook.tsx";
 
+
 function App() {
 
   const [activeTicker, setActiveTicker] = useState('BTCUSDT');
@@ -26,7 +27,7 @@ function App() {
   
   return (
     <>
-      <div className="bg-[#F8FAFC] dark:bg-[#0B0E11] absolute w-full min-h-screen  overflow-x-hidden">
+      <div className="bg-[#F8FAFC] dark:bg-[#0B0E11] absolute w-full h-screen overflow-hidden">
         <div className="relative top-[3vh] left-[95vw]">
           <ThemeToggle />
         </div>  
@@ -43,8 +44,9 @@ function App() {
           <div className="bg-[#E1E1E1] dark:bg-[#151921] row-start-2 col-span-9 row-span-7 rounded-[25px] overflow-hidden relative">
             <Chart activeTicker={activeTicker}/>
           </div>
-          <div className="bg-[#E1E1E1] dark:bg-[#151921] row-start-2 col-start-10 col-span-3 row-span-7 rounded-[25px]">
+          <div className="bg-[#E1E1E1] dark:bg-[#151921] row-start-2 col-start-10 col-span-3 row-span-7 rounded-[25px] overflow-y-auto relative">
             <OrderBook symbol={activeTicker}/>
+            
           </div>
         </div>
       </div>
