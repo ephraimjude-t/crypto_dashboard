@@ -3,3 +3,4 @@ asyncpg==0.31.0
 fastapi==0.136.0
 websockets==16.0
 uvicorn
+python-dotenv

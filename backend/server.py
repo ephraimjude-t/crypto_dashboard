@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 orderbooks = {}
 symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT']
+update_event = asyncio.Event() 
 
 
 @asynccontextmanager
@@ -81,7 +82,7 @@ async def get_change(symbol:str):
             return {"ChangePercent": data['priceChangePercent']}
         
 
-update_event = asyncio.Event() 
+
 
 @app.get("/candles/{symbol}")
 async def fetch_candles(symbol: str):
