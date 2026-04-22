@@ -47,6 +47,13 @@ app.add_middleware(
     allow_headers=["*"], 
 )
 
+@app.get("/")
+async def root():
+    return {
+        "status": "online",
+        "message": "Trading API is running",
+    }
+
 @app.get("/orderbook/{symbol}")
 async def get_orderbook(symbol: str):
     symbol = symbol.upper()
