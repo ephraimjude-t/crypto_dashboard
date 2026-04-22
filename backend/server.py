@@ -3,41 +3,54 @@ from contextlib import asynccontextmanager
 import asyncio
 from orderbook import OrderBook  
 import aiohttp
-from websockets.asyncio.client import connect
 import json
 from database import initial_setup, insert_data, get_candles
 from fastapi.middleware.cors import CORSMiddleware
 
+
 orderbooks = {}
+update_events = {} 
 symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT']
-update_event = asyncio.Event() 
 
-
-@asynccontextmanager
-async def lifespan(app:FastAPI):
-    await initial_setup()
+async def fill_all_history_in_background():
     async with aiohttp.ClientSession() as session:
         for symbol in symbols:
-            orderbooks[symbol] = OrderBook(symbol)
-            await orderbooks[symbol].snapshot_data(session)
+            print(f"BACKGROUND: Starting {symbol}...")
             async with session.get(f'https://api.binance.com/api/v3/klines?symbol={symbol}&interval=1d&limit=200') as response:
                 klines = await response.json()
                 for k in klines:
-                    await insert_data(f'{symbol}', {
-                        'time':   k[0] // 1000,
+                    await insert_data(symbol, {
+                        'time':   int(k[0] // 1000),
                         'open':   float(k[1]),
                         'high':   float(k[2]),
                         'low':    float(k[3]),
                         'close':  float(k[4]),
                         'volume': float(k[5]),
                     })
+            print(f"BACKGROUND: {symbol} is fully synced.")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("DEBUG 1: Starting initial_setup()...")
+    await initial_setup()
+    print("DEBUG 2: initial_setup() done.")
+    async with aiohttp.ClientSession() as session:
+        for symbol in symbols:
+            orderbooks[symbol] = OrderBook(symbol)
+            update_events[symbol] = asyncio.Event()
+            await orderbooks[symbol].snapshot_data(session)
+    
+    asyncio.create_task(fill_all_history_in_background())
+                    
     tasks = []
     for symbol, ob_instance in orderbooks.items():
-        tasks.append(asyncio.create_task(ob_instance.update_data(update_event)))
+        tasks.append(asyncio.create_task(ob_instance.update_data(update_events[symbol])))
     yield
+    
     for task in tasks:
         task.cancel()
     await asyncio.gather(*tasks, return_exceptions=True)
+
 app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
@@ -48,51 +61,20 @@ app.add_middleware(
     allow_headers=["*"], 
 )
 
-@app.get("/")
-async def root():
-    return {
-        "status": "online",
-        "message": "Trading API is running",
-    }
-
-@app.get("/orderbook/{symbol}")
-async def get_orderbook(symbol: str):
-    symbol = symbol.upper()
-    if symbol not in orderbooks:
-        return {"error": "Symbol not supported"}, 404
-    top_bids, top_asks = orderbooks[symbol].top(10) 
-    return{
-        "bids": [{"price": p, "quantity": q,}for p,q  in top_bids],
-        "asks":[{"price": p, "quantity": q,}for p,q  in top_asks]
-    }
-    
-
-@app.get("/price/{symbol}")
-async def get_price(symbol:str):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(f'https://api.binance.com/api/v3/ticker/price?symbol={symbol.upper()}') as response:
-            data = await response.json()
-            return {"price": data['price']}
-
-@app.get("/priceChange/{symbol}")
-async def get_change(symbol:str):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(f'https://api.binance.com/api/v3/ticker/24hr?symbol={symbol.upper()}') as response:
-            data = await response.json()
-            return {"ChangePercent": data['priceChangePercent']}
-        
-
-
-
 @app.get("/candles/{symbol}")
 async def fetch_candles(symbol: str):
     rows = await get_candles(symbol.upper(), 1100)
     return [
-        {"time": r[1], "open": r[2], "high": r[3], 
-         "low": r[4], "close": r[5], "volume": r[6]}
+        {
+            "time": r['time'], 
+            "open": r['open'], 
+            "high": r['high'], 
+            "low": r['low'], 
+            "close": r['close'], 
+            "volume": r['volume']
+        }
         for r in rows
     ]
-    
 
 @app.websocket("/ws/orderbook/{symbol}")
 async def ws_orderbook(websocket: WebSocket, symbol: str):
@@ -105,24 +87,19 @@ async def ws_orderbook(websocket: WebSocket, symbol: str):
         return
     
     target_book = orderbooks[symbol]
+    target_event = update_events[symbol]
 
     try:
         while True: 
-            await update_event.wait()
-            update_event.clear()   
-            top_bids, top_asks = target_book.top(5)
-            data = {
+            await target_event.wait()           
+            top_bids, top_asks = target_book.top(10)
+            await websocket.send_json({
                 "symbol": symbol,
-                "bids": [{"price": p, "quantity": q,}for p,q  in top_bids],
-                "asks":[{"price": p, "quantity": q,}for p,q  in top_asks],
+                "bids": [{"price": p, "quantity": q} for p, q in top_bids],
+                "asks": [{"price": p, "quantity": q} for p, q in top_asks],
+            })
             
-            }
-            await websocket.send_json(data)
-            
+            await asyncio.sleep(0.1) 
             
     except WebSocketDisconnect:
-        print("Client disconnected normally.")
-    except Exception as e:
-        print(f"Error: {e}")
-    
-
+        pass
