@@ -20,7 +20,7 @@ async def fill_all_history_in_background():
                 klines = await response.json()
                 for k in klines:
                     await insert_data(symbol, {
-                        'time':   int(k[0] // 1000),
+                        'time':   int(float(k[0]) // 1000),
                         'open':   float(k[1]),
                         'high':   float(k[2]),
                         'low':    float(k[3]),
