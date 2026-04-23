@@ -59,7 +59,7 @@ app.add_middleware(
     allow_methods=["*"], 
     allow_headers=["*"], 
 )
-@app.get("/"):
+@app.get("/")
 async def start():
     print("connected successfully")
 
