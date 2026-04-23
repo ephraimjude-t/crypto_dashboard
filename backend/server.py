@@ -20,7 +20,7 @@ async def fill_all_history_in_background():
                 klines = await response.json()
                 for k in klines:
                     await insert_data(symbol, {
-                        'time':   int(k([0]) // 1000),
+                        'time':   int(k[0] // 1000),
                         'open':   float(k[1]),
                         'high':   float(k[2]),
                         'low':    float(k[3]),
@@ -68,7 +68,9 @@ async def get_price(symbol:str):
     async with aiohttp.ClientSession() as session:
         async with session.get(f'https://api.binance.com/api/v3/ticker/price?symbol={symbol.upper()}') as response:
             data = await response.json()
-            return {"price": data['price']}
+            if 'price' in data:
+                return {"price": data['price']}
+            return {"error": data.get("msg", "Symbol not found")}, 400
 
 @app.get("/candles/{symbol}")
 async def fetch_candles(symbol: str):
