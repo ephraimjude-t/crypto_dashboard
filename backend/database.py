@@ -11,9 +11,6 @@ pool = None
 async def get_pool():
     global pool
     if pool is None:
-        print(f"DEBUG: Initializing pool with URL starting with: {str(DATABASE_URL)[:15]}...")
-        if not DATABASE_URL:
-            raise ValueError("DATABASE_URL is not set in Environment Variables!")
   
         pool = await asyncpg.create_pool(
             dsn=DATABASE_URL,
@@ -26,7 +23,6 @@ async def get_pool():
     return pool
 
 async def initial_setup():
-    print("DEBUG: Inside initial_setup, calling get_pool()...")
     db_pool = await get_pool()
     async with db_pool.acquire() as conn:
         await conn.execute("""

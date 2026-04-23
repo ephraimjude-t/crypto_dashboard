@@ -20,20 +20,19 @@ async def fill_all_history_in_background():
                 klines = await response.json()
                 for k in klines:
                     await insert_data(symbol, {
-                        'time':   int(k[0] // 1000),
+                        'time':   int(k([0]) // 1000),
                         'open':   float(k[1]),
                         'high':   float(k[2]),
                         'low':    float(k[3]),
                         'close':  float(k[4]),
                         'volume': float(k[5]),
                     })
-            print(f"BACKGROUND: {symbol} is fully synced.")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("DEBUG 1: Starting initial_setup()...")
+
     await initial_setup()
-    print("DEBUG 2: initial_setup() done.")
     async with aiohttp.ClientSession() as session:
         for symbol in symbols:
             orderbooks[symbol] = OrderBook(symbol)
@@ -60,6 +59,16 @@ app.add_middleware(
     allow_methods=["*"], 
     allow_headers=["*"], 
 )
+@app.get("/"):
+async def start():
+    print("connected successfully")
+
+@app.get("/price/{symbol}")
+async def get_price(symbol:str):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f'https://api.binance.com/api/v3/ticker/price?symbol={symbol.upper()}') as response:
+            data = await response.json()
+            return {"price": data['price']}
 
 @app.get("/candles/{symbol}")
 async def fetch_candles(symbol: str):
